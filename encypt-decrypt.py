@@ -2,7 +2,6 @@ nb = 4  # number of cols of State
 nRounds = 10  # number of rounds
 nk = 4  # the key length
 
-
 sbox = [
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -50,16 +49,6 @@ rcon = [
 
 
 def encrypt(input_bytes, key):
-    """Function encrypts the input_bytes according to AES(128) algorithm using the key
-    Args:
-        input_bytes -- list of int less than 255, ie list of bytes. Length of input_bytes is constantly 16
-        key -- a strig of plain text. Do not forget it! The same string is used in decryption
-    Returns:
-        List of int
-    """
-
-    # let's prepare our enter data: State array and KeySchedule
-
     state = [[] for j in range(4)]
     for r in range(4):
         for c in range(nb):
@@ -95,7 +84,7 @@ def decrypt(cipher, key):
         List of int
     """
 
-# let's prepare our algorithm enter data: State array and KeySchedule
+    # let's prepare our algorithm enter data: State array and KeySchedule
     state = [[] for i in range(nb)]
     for r in range(4):
         for c in range(nb):
@@ -120,25 +109,15 @@ def decrypt(cipher, key):
 
     output = [None for i in range(4 * nb)]
     for r in range(4):
-       for c in range(nb):
-        output[r + 4 * c] = state[r][c]
+        for c in range(nb):
+            output[r + 4 * c] = state[r][c]
 
     return output
 
 
 def sub_bytes(state, inv=False):
-    """That transformation replace every element from State on element from Sbox
-    according the algorithm: in hexadecimal notation an element from State
-    consist of two values: 0x<val1><val2>. We take elem from crossing
-    val1-row and val2-column in Sbox and put it instead of the element in State.
-        If decryption-transformation is on (inv == True) it uses InvSbox instead Sbox.
-        Args:
-    inv -- If value == False means function is encryption-transformation.
-        True - decryption-transformation
-    """
-
     # encrypt
-    if inv == False:
+    if not inv:
         box = sbox
     else:  # decrypt
         box = inv_sbox
@@ -148,8 +127,6 @@ def sub_bytes(state, inv=False):
             row = state[i][j] // 0x10
             col = state[i][j] % 0x10
 
-            # Our Sbox is a flat array, not a bable. So, we use this trich to find elem:
-            # And DO NOT change list sbox! if you want it to work
             box_elem = box[16 * row + col]
             state[i][j] = box_elem
 
@@ -157,16 +134,8 @@ def sub_bytes(state, inv=False):
 
 
 def shift_rows(state, inv=False):
-    """That transformation shifts rows of State: the second rotate over 1 bytes,
-    the third rotate over 2 bytes, the fourtg rotate over 3 bytes. The transformation doesn't
-    touch the first row. When encrypting transformation uses left shift, in decription - right shift
-    Args:
-        inv: If value == False means function is encryption mode. True - decryption mode
-    """
-
     count = 1
-
-    if inv == False:  # encrypting
+    if not inv:  # encrypting
         for i in range(1, nb):
             state[i] = left_shift(state[i], count)
             count += 1
@@ -179,15 +148,8 @@ def shift_rows(state, inv=False):
 
 
 def mix_columns(state, inv=False):
-    """When encrypting transformation multiplyes every column of State with
-    a fixed polinomial a(x) = {03}x**3 + {01}x**2 + {01}x + {02} in Galua field.
-        When decrypting multiplies with a'(x) = {0b}x**3 + {0d}x**2 + {09}x + {0e}
-    Detailed information in AES standart.
-        Args:
-    inv: If value == False means function is encryption mode. True - decryption mode
-    """
-
     for i in range(nb):
+
         if inv == False:  # encryption
             s0 = mul_by_02(state[0][i]) ^ mul_by_03(state[1][i]) ^ state[2][i] ^ state[3][i]
             s1 = state[0][i] ^ mul_by_02(state[1][i]) ^ mul_by_03(state[2][i]) ^ state[3][i]
@@ -208,14 +170,9 @@ def mix_columns(state, inv=False):
 
 
 def key_expansion(key):
-    """It makes list of RoundKeys for function AddRoundKey. All details
-    about algorithm is is in AES standart
-    """
-
     key_symbols = [ord(symbol) for symbol in key]
 
-    # ChipherKey should contain 16 symbols to fill 4*4 table. If it's less
-    # complement the key with "0x01"
+    # ChipherKey should contain 16 symbols to fill 4*4 table. If it's less complement the key with "0x01"
     if len(key_symbols) < 4 * nk:
         for i in range(4 * nk - len(key_symbols)):
             key_symbols.append(0x01)
@@ -255,10 +212,6 @@ def key_expansion(key):
 
 
 def add_round_key(state, key_schedule, round=0):
-    """That transformation combines State and KeySchedule together. Xor
-    of State and RoundSchedule(part of KeySchedule).
-    """
-
     for col in range(nk):
         # nb*round is a shift which indicates start of a part of the KeySchedule
         s0 = state[0][col] ^ key_schedule[0][nb * round + col]
@@ -274,11 +227,7 @@ def add_round_key(state, key_schedule, round=0):
     return state
 
 
-# Small helpful functions block
-
 def left_shift(array, count):
-    """Rotate the array over count times"""
-
     res = array[:]
     for i in range(count):
         temp = res[1:]
@@ -289,8 +238,6 @@ def left_shift(array, count):
 
 
 def right_shift(array, count):
-    """Rotate the array over count times"""
-
     res = array[:]
     for i in range(count):
         tmp = res[:-1]
@@ -301,8 +248,6 @@ def right_shift(array, count):
 
 
 def mul_by_02(num):
-    """The function multiplies by 2 in Galua space"""
-
     if num < 0x80:
         res = (num << 1)
     else:
@@ -337,4 +282,3 @@ def mul_by_0d(num):
 def mul_by_0e(num):
     # return mul_by_0d(num)^num
     return mul_by_02(mul_by_02(mul_by_02(num))) ^ mul_by_02(mul_by_02(num)) ^ mul_by_02(num)
-
