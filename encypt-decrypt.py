@@ -1,16 +1,16 @@
-nb = 4  # number of cols of State
-nRounds = 10  # number of rounds
-nk = 4  # the key length
+nb = 4  
+nk = 4  
+nRounds = 10 
 
-def encrypt(input_bytes, key):
+
+def encryptionFn(input_bytes, key):
     state = [[] for j in range(4)]
     for r in range(4):
         for c in range(nb):
             state[r].append(input_bytes[r + 4 * c])
 
     key_schedule = key_expansion(key)
-
-    state = add_round_key(state, key_schedule)
+    state = add_round_key (state, key_schedule)
 
     for rnd in range(1, nRounds):
         state = sub_bytes(state)
@@ -29,23 +29,13 @@ def encrypt(input_bytes, key):
     return output
 
 
-def decrypt(cipher, key):
-    """Function decrypts the cipher according to AES(128) algorithm using the key
-    Args:
-        cipher -- list of int less than 255, ie list of bytes
-    key -- a strig of plain text. Do not forget it! The same string is used in decryption
-    Returns:
-        List of int
-    """
-
-    # let's prepare our algorithm enter data: State array and KeySchedule
+def decryptionFn(cipher, key):
     state = [[] for i in range(nb)]
     for r in range(4):
         for c in range(nb):
             state[r].append(cipher[r + 4 * c])
 
     key_schedule = key_expansion(key)
-
     state = add_round_key(state, key_schedule, nRounds)
 
     rnd = nRounds - 1
@@ -70,16 +60,15 @@ def decrypt(cipher, key):
 
 
 def sub_bytes(state, inv=False):
-    # encrypt
     if not inv:
         box = sbox
-    else:  # decrypt
+    else: 
         box = inv_sbox
 
     for i in range(len(state)):
         for j in range(len(state[i])):
-            row = state[i][j] // 0x10
-            col = state[i][j] % 0x10
+            row = state[i][j] 
+            col = state[i][j]
 
             box_elem = box[16 * row + col]
             state[i][j] = box_elem
@@ -89,11 +78,11 @@ def sub_bytes(state, inv=False):
 
 def shift_rows(state, inv=False):
     count = 1
-    if not inv:  # encrypting
+    if not inv:  
         for i in range(1, nb):
             state[i] = left_shift(state[i], count)
             count += 1
-        else:  # decryptionting
+        else: 
             for i in range(1, nb):
                 state[i] = right_shift(state[i], count)
                 count += 1
@@ -126,38 +115,31 @@ def mix_columns(state, inv=False):
 def key_expansion(key):
     key_symbols = [ord(symbol) for symbol in key]
 
-    # ChipherKey should contain 16 symbols to fill 4*4 table. If it's less complement the key with "0x01"
     if len(key_symbols) < 4 * nk:
         for i in range(4 * nk - len(key_symbols)):
             key_symbols.append(0x01)
 
-    # make ChipherKey(which is base of KeySchedule)
     key_schedule = [[] for i in range(4)]
     for r in range(4):
         for c in range(nk):
             key_schedule[r].append(key_symbols[r + 4 * c])
 
-    # Continue to fill KeySchedule
-    for col in range(nk, nb * (nRounds + 1)):  # col - column number
+    for col in range(nk, nb * (nRounds + 1)): 
         if col % nk == 0:
-            # take shifted (col - 1)th column...
             tmp = [key_schedule[row][col - 1] for row in range(1, 4)]
             tmp.append(key_schedule[0][col - 1])
 
-    # change its elements using Sbox-table like in SubBytes...
     for j in range(len(tmp)):
         sbox_row = tmp[j] // 0x10
         sbox_col = tmp[j] % 0x10
         sbox_elem = sbox[16 * sbox_row + sbox_col]
         tmp[j] = sbox_elem
 
-        #  XOR
         for row in range(4):
             s = (key_schedule[row][col - 4]) ^ (tmp[row]) ^ (rcon[row][int(col / nk - 1)])
             key_schedule[row].append(s)
 
     else:
-        # just make XOR of 2 columns
         for row in range(4):
             s = key_schedule[row][col - 4] ^ key_schedule[row][col - 1]
             key_schedule[row].append(s)
@@ -167,7 +149,6 @@ def key_expansion(key):
 
 def add_round_key(state, key_schedule, round=0):
     for col in range(nk):
-        # nb*round is a shift which indicates start of a part of the KeySchedule
         s0 = state[0][col] ^ key_schedule[0][nb * round + col]
         s1 = state[1][col] ^ key_schedule[1][nb * round + col]
         s2 = state[2][col] ^ key_schedule[2][nb * round + col]
@@ -183,6 +164,7 @@ def add_round_key(state, key_schedule, round=0):
 
 def left_shift(array, count):
     res = array[:]
+
     for i in range(count):
         temp = res[1:]
         temp.append(res[0])
@@ -207,34 +189,26 @@ def mul_by_02(num):
     else:
         res = (num << 1) ^ 0x1b
 
-    return res % 0x100
+    return res
 
 
 def mul_by_03(num):
-    """The function multiplies by 3 in Galua space
-    example: 0x03*num = (0x02 + 0x01)num = num*0x02 + num
-    Addition in Galua field is oparetion XOR
-    """
     return (mul_by_02(num) ^ num)
 
 
 def mul_by_09(num):
-    # return mul_by_03(num)^mul_by_03(num)^mul_by_03(num) - works wrong, I don't know why
     return mul_by_02(mul_by_02(mul_by_02(num))) ^ num
 
 
 def mul_by_0b(num):
-    # return mul_by_09(num)^mul_by_02(num)
     return mul_by_02(mul_by_02(mul_by_02(num))) ^ mul_by_02(num) ^ num
 
 
 def mul_by_0d(num):
-    # return mul_by_0b(num)^mul_by_02(num)
     return mul_by_02(mul_by_02(mul_by_02(num))) ^ mul_by_02(mul_by_02(num)) ^ num
 
 
 def mul_by_0e(num):
-    # return mul_by_0d(num)^num
     return mul_by_02(mul_by_02(mul_by_02(num))) ^ mul_by_02(mul_by_02(num)) ^ mul_by_02(num)
 
 sbox = [
